@@ -271,6 +271,10 @@ reasoning layer, confidence scores, and abstention matter. Reproduce it all with
 pytest -q
 ```
 
+> 📊 **Full reliability write-up** — automated tests, confidence scoring, logging
+> & error handling, and a documented **human-evaluation table** — is in
+> **[EVALUATION.md](EVALUATION.md)**.
+
 ---
 
 ## 💭 Reflection
@@ -301,6 +305,7 @@ app.py, logic_utils.py       # the original (debugged) guessing game
 tests/                       # game-logic + retriever + agent + reliability tests
 diagrams/architecture.mmd    # Mermaid system diagram (source)
 DESIGN.md                    # deeper design + trustworthiness write-up
+EVALUATION.md                # reliability: tests, confidence, logging, human eval
 model_card.md                # responsible-AI reflection (graded)
 ```
 
