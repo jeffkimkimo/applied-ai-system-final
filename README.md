@@ -39,40 +39,57 @@ started with.
 - **Code:** [glitch_investigator/](glitch_investigator/) · **Tests:**
   `pytest tests/test_retriever.py tests/test_agent.py tests/test_reliability.py`
 
-### 🧭 Architecture
+### 🧭 System diagram
 
-Source: [diagrams/architecture.mmd](diagrams/architecture.mmd) (Mermaid).
+Source: [diagrams/architecture.mmd](diagrams/architecture.mmd) (Mermaid). Shows the
+main components, the data flow (input → process → output), and where a **human**
+and the **reliability tests** check the AI's results.
 
 ```mermaid
 flowchart TD
-    U["User pastes buggy Python / Streamlit code"] --> V{"Input valid?"}
-    V -- "no" --> R["Reject safely<br/>(empty / too large / not code)"]
-    V -- "yes" --> RET["1. RETRIEVE<br/>TF-IDF over bug-pattern KB<br/>(RAG · Module 4)"]
-
-    KB[("bug_patterns.json<br/>knowledge base")] --> RET
-
-    RET --> DIA["2. DIAGNOSE<br/>reason over code + retrieved patterns,<br/>cite evidence lines + confidence<br/>(Reasoning · Module 3)"]
-
-    DIA -- "low confidence" --> AB["Abstain<br/>(no confident match — do not guess)"]
-    DIA -- "confident" --> FIX["3. PROPOSE FIX<br/>patched code + unified diff"]
-
-    FIX --> VER["4. VERIFY (static, AST only)<br/>never executes the code<br/>(Module 5)"]
-    VER -- "fail" --> REF{"refined &lt; 2 times?"}
-    REF -- "yes (refine)" --> FIX
-    REF -- "no" --> MAN["Return unverified<br/>(flag for manual review)"]
-    VER -- "pass" --> OUT["Verified fix + full agent trace"]
-
-    subgraph BACKEND["Provider-agnostic backend"]
-        direction TB
-        GC["get_client()"]
-        GC -- "API key present" --> CLA["Claude (live)<br/>structured outputs"]
-        GC -- "no key / live error" --> MOCK["Deterministic offline mock"]
+    subgraph INPUT["① Input"]
+        U["User pastes buggy<br/>Python / Streamlit code"]
     end
 
+    U --> GATE{"Guardrail:<br/>valid code?"}
+    GATE -- "no (empty / not code / too large)" --> REJECT["Reject safely<br/>(no crash)"]
+
+    subgraph CORE["② Process — core components (glitch_investigator/)"]
+        direction TB
+        RET["RETRIEVER<br/>TF-IDF over bug-pattern KB (RAG)"]
+        DIA["REASONER / DIAGNOSER<br/>cites evidence lines + confidence"]
+        FIX["FIXER<br/>patched code + unified diff"]
+        EVAL["VERIFIER / EVALUATOR<br/>static AST checks — never runs the code"]
+
+        RET --> DIA --> FIX --> EVAL
+        EVAL -- "fail → refine (bounded, &lt; 2x)" --> FIX
+        DIA -- "low confidence" --> AB["ABSTAIN<br/>(don't guess)"]
+    end
+
+    GATE -- "yes" --> RET
+    KB[("bug_patterns.json<br/>knowledge base")] --> RET
+
+    subgraph BACKEND["LLM backend (provider-agnostic)"]
+        direction TB
+        GC["get_client()"]
+        GC -- "API key present" --> CLA["Claude (live)"]
+        GC -- "no key / live error" --> MOCK["Deterministic mock (offline)"]
+    end
     DIA -. "reasons via" .-> GC
     FIX -. "reasons via" .-> GC
 
-    GOLD[("cases.json<br/>golden dataset")] -. "reliability tests<br/>(Module 5)" .-> RET
+    EVAL -- "pass" --> OUT["③ Output<br/>verified fix + diff + full agent trace"]
+
+    subgraph CHECK["④ Checking the AI's results"]
+        direction TB
+        HUMAN["👤 HUMAN-IN-THE-LOOP<br/>reviews the diff, accepts or rejects<br/>(nothing is auto-applied)"]
+        TEST["🧪 RELIABILITY TESTER<br/>golden dataset (cases.json):<br/>measures retrieval + diagnosis accuracy"]
+    end
+
+    OUT --> HUMAN
+    TEST -. "validates" .-> RET
+    TEST -. "validates" .-> DIA
+    TEST -. "validates" .-> EVAL
 ```
 
 ---
