@@ -1,0 +1,2 @@
+# This folder holds system-architecture images (e.g. an exported architecture.png).
+# The required Mermaid *source* lives in ../diagrams/architecture.mmd.

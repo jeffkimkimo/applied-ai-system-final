@@ -39,6 +39,42 @@ started with.
 - **Code:** [glitch_investigator/](glitch_investigator/) · **Tests:**
   `pytest tests/test_retriever.py tests/test_agent.py tests/test_reliability.py`
 
+### 🧭 Architecture
+
+Source: [diagrams/architecture.mmd](diagrams/architecture.mmd) (Mermaid).
+
+```mermaid
+flowchart TD
+    U["User pastes buggy Python / Streamlit code"] --> V{"Input valid?"}
+    V -- "no" --> R["Reject safely<br/>(empty / too large / not code)"]
+    V -- "yes" --> RET["1. RETRIEVE<br/>TF-IDF over bug-pattern KB<br/>(RAG · Module 4)"]
+
+    KB[("bug_patterns.json<br/>knowledge base")] --> RET
+
+    RET --> DIA["2. DIAGNOSE<br/>reason over code + retrieved patterns,<br/>cite evidence lines + confidence<br/>(Reasoning · Module 3)"]
+
+    DIA -- "low confidence" --> AB["Abstain<br/>(no confident match — do not guess)"]
+    DIA -- "confident" --> FIX["3. PROPOSE FIX<br/>patched code + unified diff"]
+
+    FIX --> VER["4. VERIFY (static, AST only)<br/>never executes the code<br/>(Module 5)"]
+    VER -- "fail" --> REF{"refined &lt; 2 times?"}
+    REF -- "yes (refine)" --> FIX
+    REF -- "no" --> MAN["Return unverified<br/>(flag for manual review)"]
+    VER -- "pass" --> OUT["Verified fix + full agent trace"]
+
+    subgraph BACKEND["Provider-agnostic backend"]
+        direction TB
+        GC["get_client()"]
+        GC -- "API key present" --> CLA["Claude (live)<br/>structured outputs"]
+        GC -- "no key / live error" --> MOCK["Deterministic offline mock"]
+    end
+
+    DIA -. "reasons via" .-> GC
+    FIX -. "reasons via" .-> GC
+
+    GOLD[("cases.json<br/>golden dataset")] -. "reliability tests<br/>(Module 5)" .-> RET
+```
+
 ---
 
 ## 🛠️ Setup
