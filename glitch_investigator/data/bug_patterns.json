@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "description": "Knowledge base of common Python / Streamlit bug patterns. Each entry is a retrievable document used by the AI Glitch Investigator's RAG layer.",
+  "patterns": [
+    {
+      "id": "streamlit-state-reset",
+      "name": "Streamlit state resets on every rerun",
+      "symptom": "A value like a secret number, counter, or score changes or resets every time a button is clicked. State does not persist between interactions.",
+      "cause": "Streamlit re-runs the whole script top-to-bottom on every widget interaction. A plain local variable (e.g. secret = random.randint(...)) is recomputed on each rerun instead of being stored in st.session_state.",
+      "fix": "Store values that must survive reruns in st.session_state, initializing them only once (if 'secret' not in st.session_state: ...). Read and write st.session_state.secret thereafter.",
+      "signals": ["random.randint", "st.session_state", "st.button", "rerun", "secret", "reset", "score"],
+      "keywords": "streamlit session_state rerun random randint variable resets every click button secret number changes persist state initialize",
+      "example": "secret = random.randint(1, 100)  # BUG: recomputed on every rerun; use st.session_state"
+    },
+    {
+      "id": "int-str-compare",
+      "name": "Comparing an int against a str",
+      "symptom": "Comparisons behave randomly or raise TypeError; hints look correct sometimes and wrong other times, often alternating.",
+      "cause": "One operand was cast to a string (e.g. str(secret)) so guess > secret compares int to str. In Python 3 this raises TypeError; a broad except can swallow it and return a garbage result.",
+      "fix": "Coerce both operands to int before comparing (guess = int(guess); secret = int(secret)). Remove stray str() casts. Never wrap comparisons in a bare except that hides the TypeError.",
+      "signals": ["str(", "int(", "TypeError", "compare", "guess", "secret", "except"],
+      "keywords": "int str comparison typeerror string cast guess secret compare integer type mismatch even attempt alternating check_guess win too high too low return outcome str secret str str",
+      "example": "if guess > str(secret):  # BUG: int vs str; coerce both to int"
+    },
+    {
+      "id": "backwards-conditional",
+      "name": "Backwards / inverted conditional or hint",
+      "symptom": "The direction of a hint is reversed: guessing too high says 'go higher', too low says 'go lower'. Logic is inverted.",
+      "cause": "The comparison operator points the wrong way, or the hint messages are mapped to the opposite outcome.",
+      "fix": "Match each outcome to the correct message: guess > secret means 'too high, go lower'; guess < secret means 'too low, go higher'. Verify the conditional direction against a concrete example.",
+      "signals": ["higher", "lower", "too high", "too low", ">", "<", "hint"],
+      "keywords": "backwards inverted hint higher lower too high too low reversed conditional direction wrong operator mapping",
+      "example": "if guess > secret: return 'go HIGHER'  # BUG: too high should say go LOWER"
+    },
+    {
+      "id": "off-by-one",
+      "name": "Off-by-one error",
+      "symptom": "Attempt counts, 'attempts left', ranges, or loop bounds are off by one. First attempt shows as attempt 2, or one too many/few iterations.",
+      "cause": "A counter is initialized at 1 instead of 0 (or vice versa), or a range/limit uses < instead of <= (or an inclusive/exclusive boundary is wrong).",
+      "fix": "Start counters at 0 and increment before use, or adjust the boundary comparison. Trace the first and last iteration by hand to confirm the bound.",
+      "signals": ["attempts", "range(", "+ 1", "- 1", "<=", "<", "limit"],
+      "keywords": "off by one attempts left counter initialize range boundary limit first attempt increment index fencepost",
+      "example": "st.session_state.attempts = 1  # BUG: starts at 1, making 'attempts left' off by one"
+    },
+    {
+      "id": "random-reseed",
+      "name": "Randomness recomputed / reseeded when it should be stable",
+      "symptom": "A random target changes unexpectedly mid-round, or results are non-reproducible when they should be deterministic.",
+      "cause": "random.randint / random.choice is called in a code path that runs repeatedly (e.g. every rerun or every submit) instead of once per round; or the value is not stored.",
+      "fix": "Generate the random value once per round and persist it (st.session_state or a stored variable). Only reseed on an explicit New Game action.",
+      "signals": ["random.randint", "random.choice", "random.seed", "new game", "reset"],
+      "keywords": "random reseed regenerate every rerun changes mid round persist store once per round new game stable reproducible",
+      "example": "secret = random.randint(low, high)  # BUG at top level: regenerates each rerun"
+    },
+    {
+      "id": "erratic-scoring",
+      "name": "Erratic or nonsensical score updates",
+      "symptom": "Score jumps around unpredictably, changes on wrong guesses, or randomly adds/subtracts points.",
+      "cause": "Scoring logic mutates the score on the wrong outcome (e.g. wrong guesses change score) or introduces randomness/side effects where a deterministic rule is expected.",
+      "fix": "Make scoring a pure function of outcome and attempt count. Wrong guesses should not change the score; a win awards points deterministically (e.g. fewer attempts = more points, with a floor).",
+      "signals": ["score", "+= 5", "-= 5", "random", "update_score", "points"],
+      "keywords": "score scoring erratic random points wrong guess subtract add deterministic pure function reward attempts",
+      "example": "score += random.choice([-5, 5])  # BUG: wrong guesses should not move score"
+    },
+    {
+      "id": "mutable-default-arg",
+      "name": "Mutable default argument",
+      "symptom": "A list/dict argument seems to remember values across separate calls; state leaks between invocations.",
+      "cause": "A function uses a mutable default like def f(items=[]): the default is created once and shared across all calls.",
+      "fix": "Use None as the default and create the container inside the function: def f(items=None): items = items or [].",
+      "signals": ["def ", "=[]", "={}", "default", "append"],
+      "keywords": "mutable default argument shared list dict persists across calls none sentinel append leak",
+      "example": "def add(item, history=[]):  # BUG: history shared across calls"
+    },
+    {
+      "id": "bare-except-swallow",
+      "name": "Bare except swallows real errors",
+      "symptom": "Code fails silently or returns wrong values with no traceback; bugs are hard to locate.",
+      "cause": "A bare 'except:' or 'except Exception: pass' catches and hides the real error (TypeError, ValueError), so a broken code path returns a fallback instead of surfacing.",
+      "fix": "Catch only the specific expected exception, keep the block small, and never silently pass. Let unexpected errors propagate or log them.",
+      "signals": ["except:", "except Exception", "pass", "try:"],
+      "keywords": "bare except swallow hide error silent pass exception broad catch typeerror fallback traceback",
+      "example": "try:\n    return guess > secret\nexcept:\n    return None  # BUG: hides the real TypeError"
+    },
+    {
+      "id": "incomplete-reset",
+      "name": "Incomplete state reset (New Game leaves stale state)",
+      "symptom": "After a win/loss, starting a new game leaves the board dead: Submit does nothing, old score/status/history persist.",
+      "cause": "The reset handler only resets some fields (e.g. the secret) but leaves status, score, or history stale, so guards like 'if status != playing: stop' keep blocking input.",
+      "fix": "Reset every piece of state in one place (secret, attempts, score, status, history) and use the current difficulty range. Call it on init and on New Game.",
+      "signals": ["new game", "reset", "status", "score", "history", "session_state"],
+      "keywords": "incomplete reset new game stale state status score history not cleared submit dead after win loss",
+      "example": "st.session_state.secret = randint(...)  # BUG: forgot to reset status/score/history"
+    },
+    {
+      "id": "hardcoded-range",
+      "name": "Hard-coded range / magic number ignores configuration",
+      "symptom": "UI text or logic says 'between 1 and 100' even when difficulty or settings imply a different range.",
+      "cause": "A range or bound is hard-coded instead of derived from the current difficulty/config, so it desyncs when settings change.",
+      "fix": "Derive the range from a single source of truth (e.g. get_range_for_difficulty) and use it for both the secret and the display text.",
+      "signals": ["1 and 100", "range", "difficulty", "hardcoded", "f\"", "low", "high"],
+      "keywords": "hardcoded range magic number between 1 and 100 difficulty config desync display text single source of truth",
+      "example": "st.info('Guess between 1 and 100')  # BUG: hard-coded regardless of difficulty"
+    }
+  ]
+}

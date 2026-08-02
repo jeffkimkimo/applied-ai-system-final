@@ -1,0 +1,48 @@
+{
+  "description": "Golden dataset: labeled buggy snippets used to measure the Glitch Investigator's detection accuracy (Module 5 reliability testing). Each case has an id, a buggy code snippet, and the expected knowledge-base pattern id. Several are the real bugs from the original glitchy guessing game.",
+  "cases": [
+    {
+      "id": "game-state-reset",
+      "note": "The original game's flagship bug: secret regenerated every rerun.",
+      "expected_pattern": "streamlit-state-reset",
+      "code": "import streamlit as st\nimport random\nsecret = random.randint(1, 100)\nguess = st.number_input('Guess')\nif st.button('Submit'):\n    st.write('You guessed', guess, 'secret was', secret)\n"
+    },
+    {
+      "id": "game-int-str-compare",
+      "note": "The original game cast the secret to str on even attempts.",
+      "expected_pattern": "int-str-compare",
+      "code": "def check_guess(guess, secret):\n    if guess == secret:\n        return 'Win'\n    if guess > str(secret):\n        return 'Too High'\n    return 'Too Low'\n"
+    },
+    {
+      "id": "game-backwards-hint",
+      "note": "The original game pointed the hints the wrong way.",
+      "expected_pattern": "backwards-conditional",
+      "code": "def hint(guess, secret):\n    if guess > secret:\n        return 'Too high, go HIGHER!'\n    else:\n        return 'Too low, go LOWER!'\n"
+    },
+    {
+      "id": "game-off-by-one",
+      "expected_pattern": "off-by-one",
+      "code": "st.session_state.attempts = 1\nattempt_limit = 8\nst.write('Attempts left:', attempt_limit - st.session_state.attempts)\n"
+    },
+    {
+      "id": "game-erratic-score",
+      "expected_pattern": "erratic-scoring",
+      "code": "import random\nif outcome != 'Win':\n    score += random.choice([-5, 5])\n"
+    },
+    {
+      "id": "mutable-default",
+      "expected_pattern": "mutable-default-arg",
+      "code": "def record(value, history=[]):\n    history.append(value)\n    return history\n"
+    },
+    {
+      "id": "bare-except",
+      "expected_pattern": "bare-except-swallow",
+      "code": "def safe_compare(guess, secret):\n    try:\n        return guess > secret\n    except:\n        return None\n"
+    },
+    {
+      "id": "hardcoded-range",
+      "expected_pattern": "hardcoded-range",
+      "code": "difficulty = 'Hard'\nst.info('Guess a number between 1 and 100')\n"
+    }
+  ]
+}

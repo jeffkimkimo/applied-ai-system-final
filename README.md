@@ -9,10 +9,43 @@ It wrote the code, ran away, and now the game is unplayable.
 - The hints lie to you.
 - The secret number seems to have commitment issues.
 
+---
+
+## 🤖 Final Project: the AI Glitch Investigator
+
+The original mission (below) was to hand-debug the game. The **final project**
+extends it into a full applied AI system: **the AI that investigates glitches
+for you.** Paste buggy Python/Streamlit code and it:
+
+1. **Retrieves** similar known bug patterns (RAG / Module 4)
+2. **Reasons** about the fault with cited evidence and a confidence score (Module 3)
+3. **Proposes a fix** as a reviewable diff, and **verifies** its own answer in a
+   bounded agentic loop — without ever executing your code (Module 5)
+4. **Reliability-tests** itself against a labeled golden dataset (Module 5)
+
+Open the **🕵️ Glitch Investigator** page in the app and load the *"Original
+glitchy game"* preset to watch the AI rediscover the very bugs this project
+started with.
+
+- **Provider-agnostic:** uses Claude when `ANTHROPIC_API_KEY` is set, and a
+  deterministic offline mock otherwise — so it runs and all tests pass **with no
+  API key**. To enable live Claude reasoning: `export ANTHROPIC_API_KEY=...`
+- **Trustworthy by design:** grounded citations, abstains when unsure, never
+  executes untrusted code, treats input as data (injection-resistant), and keeps
+  a human in the loop. Full write-up in **[DESIGN.md](DESIGN.md)**.
+- **Logged & fault-tolerant:** every run logs each step (`glitch_investigator`
+  logger); a live API failure logs the error and falls back to the offline mock
+  instead of crashing.
+- **Code:** [glitch_investigator/](glitch_investigator/) · **Tests:**
+  `pytest tests/test_retriever.py tests/test_agent.py tests/test_reliability.py`
+
+---
+
 ## 🛠️ Setup
 
 1. Install dependencies: `pip install -r requirements.txt`
-2. Run the broken app: `python -m streamlit run app.py`
+2. Run the app: `python -m streamlit run app.py`
+   (the game is the home page; the 🕵️ Glitch Investigator is in the sidebar)
 
 ## 🕵️‍♂️ Your Mission
 
@@ -77,12 +110,20 @@ A sample game (Normal difficulty, secret = 50) from start to finish:
 ```
 ============================= test session starts ==============================
 platform darwin -- Python 3.13.13, pytest-9.0.3, pluggy-1.6.0
-collected 8 items
+collected 40 items
 
-tests/test_game_logic.py ........                                        [100%]
+tests/test_agent.py ..........                                           [ 25%]
+tests/test_game_logic.py ........                                        [ 45%]
+tests/test_reliability.py ................                               [ 85%]
+tests/test_retriever.py ......                                           [100%]
 
-============================== 8 passed in 0.02s ===============================
+============================== 40 passed in 0.08s ==============================
 ```
+
+The 8 original game-logic tests still pass, plus 32 new tests covering the AI
+Investigator: the RAG retriever, the agentic pipeline (including its live-error
+fallback), and the golden-dataset reliability + robustness suite — all offline,
+no API key required.
 
 ## 🚀 Stretch Features
 
