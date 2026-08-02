@@ -62,13 +62,20 @@ def _print_result(title, code):
         print()
         return
 
-    print("RETRIEVED:", ", ".join(f"{r.pattern.id}={r.score}" for r in result.retrieved))
-    print(f"DIAGNOSIS: {d.bug_name} | confidence {d.confidence} | evidence lines {d.evidence_lines}")
+    print("RETRIEVED:", ", ".join(f"{r.pattern.id}={r.score}" for r in result.retrieved),
+          "   <-- RAG")
+    print(f"DIAGNOSIS: {d.bug_name} | confidence {d.confidence} | evidence lines {d.evidence_lines}"
+          "   <-- reasoning")
     if result.verification:
-        print(f"VERIFY  : {result.verification.summary} (passed={result.verification.passed})")
+        print(f"VERIFY  : {result.verification.summary} (passed={result.verification.passed})"
+              "   <-- evaluator")
     if result.diff:
         print("DIFF:")
         print(result.diff.rstrip())
+    # The agent's step-by-step trace makes the multi-step agentic workflow visible.
+    print("AGENT STEPS (retrieve -> diagnose -> fix+verify):")
+    for step in result.trace:
+        print(f"    - {step.name}: {step.detail}")
     print(f"OUTCOME : {result.message}")
     print()
 
